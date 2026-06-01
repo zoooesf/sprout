@@ -1,0 +1,79 @@
+{
+  "expo": {
+    "name": "Sprout",
+    "slug": "sprout",
+    "version": "1.0.0",
+    "scheme": "sprout",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.sprout.health",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Sprout uses your camera to photograph skin conditions and product labels.",
+        "NSPhotoLibraryUsageDescription": "Sprout saves and reads photos for health logs.",
+        "NSLocationWhenInUseUsageDescription": "Sprout uses your location to fetch local weather conditions.",
+        "NSUserNotificationsUsageDescription": "Sprout sends reminders for daily check-ins."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#F4EFE6"
+      },
+      "package": "com.sprout.health",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_FINE_LOCATION",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/icon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Sprout uses your camera to photograph skin conditions and product labels."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Sprout saves and reads photos for health logs."
+        }
+      ],
+      [
+        "expo-barcode-scanner",
+        {
+          "cameraPermission": "Sprout scans barcodes to look up food and product ingredients."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#6B8E5A"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Sprout uses your location to fetch local weather for health logs."
+        }
+      ],
+      "expo-sqlite",
+      "@react-native-community/datetimepicker"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
