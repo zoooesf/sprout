@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -12,14 +14,21 @@ const queryClient = new QueryClient({
 });
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    ...MaterialCommunityIcons.font,
+    ...Ionicons.font,
+  });
+
   const setSession = useAuthStore((s) => s.setSession);
+  const setSessionLoaded = useAuthStore((s) => s.setSessionLoaded);
   const loadUserData = useAuthStore((s) => s.loadUserData);
 
   useEffect(() => {
     // Hydrate session on app start
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (session) loadUserData();
+      if (session) loadUserData().finally(setSessionLoaded);
+      else setSessionLoaded();
     });
 
     // Listen for auth state changes

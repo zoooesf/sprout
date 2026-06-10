@@ -4,6 +4,7 @@ import type { Session } from '@supabase/supabase-js';
 
 interface AuthState {
   session: Session | null;
+  sessionLoaded: boolean;
   profile: Profile | null;
   family: Family | null;
   subjects: Subject[];
@@ -12,6 +13,7 @@ interface AuthState {
 
   // Actions
   setSession: (session: Session | null) => void;
+  setSessionLoaded: () => void;
   setProfile: (profile: Profile | null) => void;
   setFamily: (family: Family | null) => void;
   setSubjects: (subjects: Subject[]) => void;
@@ -22,6 +24,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   session: null,
+  sessionLoaded: false,
   profile: null,
   family: null,
   subjects: [],
@@ -29,6 +32,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   activeSubject: null,
 
   setSession: (session) => set({ session }),
+  setSessionLoaded: () => set({ sessionLoaded: true }),
   setProfile: (profile) => set({ profile }),
   setFamily: (family) => set({ family }),
   setSubjects: (subjects) => set({ subjects }),
