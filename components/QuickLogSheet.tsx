@@ -15,7 +15,7 @@ import { CategoryIcon } from './icons/CategoryIcon';
 import { SoftButton } from './SoftButton';
 import { ScoreDot } from './ScoreDot';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
-import { useCreateLogEntry, useUpdateLogEntry, useLibraryItems } from '@/hooks/useLogEntries';
+import { useCreateLogEntry, useUpdateLogEntry, useLibraryItems, useLastEntry, useFamilyLibraryItems, useCreateLibraryItem } from '@/hooks/useLogEntries';
 import { lookupBarcode } from '@/lib/openFoodFacts';
 import { fetchCurrentWeather } from '@/lib/weather';
 import { uploadPhoto } from '@/lib/storage';
@@ -218,6 +218,7 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
   const [selectedLibraryId, setSelectedLibraryId] = useState<string | null>(() => p.library_item_id ?? null);
   const [selectedAreas, setSelectedAreas] = useState<string[]>(() => p.areas ?? []);
   const [dose, setDose] = useState(() => p.dose ?? '');
+  const [photoSeverity, setPhotoSeverity] = useState<number>(() => p.severity as number ?? 3);
 
   // Photo state
   const [photoUri, setPhotoUri] = useState<string | null>(
@@ -234,6 +235,13 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
     cat === 'medication' ? 'medication' : cat === 'cream' ? 'cream' : undefined
   );
 
+  const { data: lastMedEntry } = useLastEntry(
+    (cat === 'medication' || cat === 'cream') ? cat as 'medication' | 'cream' : 'medication'
+  );
+  const { data: savedFoods = [] } = useFamilyLibraryItems('food');
+  const { data: savedRecipes = [] } = useFamilyLibraryItems('recipe');
+  const createLibraryItem = useCreateLibraryItem();
+
   const SYMPTOMS = ['Itchy', 'Red patches', 'Dry skin', 'Scratching', 'Cracked', 'Weeping', 'Sleep disrupted', 'Calm', 'Hot to touch'];
   const BODY_AREAS = ['Cheeks', 'Eyes', 'Elbows', 'Knees', 'Neck', 'Belly', 'Back', 'Arms', 'Legs', 'Hands', 'Feet'];
 
@@ -242,6 +250,14 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
 
   const toggleArea = (a: string) =>
     setSelectedAreas((prev) => prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]);
+
+  const handleRepeatLastDose = () => {
+    if (!lastMedEntry) return;
+    const lp = lastMedEntry.payload as Record<string, any>;
+    if (lp.library_item_id) setSelectedLibraryId(lp.library_item_id);
+    if (lp.dose) setDose(lp.dose);
+    if (lp.areas) setSelectedAreas(lp.areas);
+  };
 
   const handleBarcodeScan = async (barcode: string) => {
     setShowScanner(false);
@@ -254,6 +270,16 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
     }
     if (product.name) setFoodName(product.name);
     if (product.ingredients.length > 0) setFoodIngredients(product.ingredients.join(', '));
+    // Auto-save to food library if not already saved
+    const alreadySaved = savedFoods.some((f) => f.barcode === barcode || f.name === product.name);
+    if (!alreadySaved && product.name) {
+      createLibraryItem.mutate({
+        type: 'food',
+        name: product.name,
+        ingredients: product.ingredients,
+        barcode,
+      });
+    }
   };
 
   const pickPhoto = () => {
@@ -339,7 +365,7 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
               setUploadingPhoto(false);
             }
           }
-          payload = { areas: selectedAreas, caption: noteText.trim() || null };
+          payload = { areas: selectedAreas, caption: noteText.trim() || null, severity: photoSeverity };
           break;
         }
       }
@@ -429,6 +455,50 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
         {/* ── Food ── */}
         {cat === 'food' && (
           <>
+            {(savedFoods.length > 0 || savedRecipes.length > 0) && (
+              <>
+                {savedRecipes.length > 0 && (
+                  <>
+                    <Text style={styles.fieldLabel}>Recipes</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipScrollContent}>
+                      {savedRecipes.map((r) => (
+                        <TouchableOpacity
+                          key={r.id}
+                          style={styles.foodChip}
+                          activeOpacity={0.7}
+                          onPress={() => {
+                            setFoodName(r.name);
+                            setFoodIngredients(r.ingredients.join(', '));
+                          }}
+                        >
+                          <Text style={styles.foodChipText}>{r.name}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </>
+                )}
+                {savedFoods.length > 0 && (
+                  <>
+                    <Text style={[styles.fieldLabel, { marginTop: spacing.sm }]}>Saved foods</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipScrollContent}>
+                      {savedFoods.map((f) => (
+                        <TouchableOpacity
+                          key={f.id}
+                          style={styles.foodChip}
+                          activeOpacity={0.7}
+                          onPress={() => {
+                            setFoodName(f.name);
+                            setFoodIngredients(f.ingredients.join(', '));
+                          }}
+                        >
+                          <Text style={styles.foodChipText}>{f.name}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </>
+                )}
+              </>
+            )}
             <TouchableOpacity
               style={styles.scanBtn}
               onPress={() => setShowScanner(true)}
@@ -454,12 +524,48 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
             <TextInput style={[styles.input, styles.inputMulti]} placeholder="Wheat, tomato, basil, olive oil…"
               placeholderTextColor={colors.faint} value={foodIngredients} onChangeText={setFoodIngredients}
               multiline numberOfLines={3} textAlignVertical="top" />
+            {foodName.trim() ? (
+              <TouchableOpacity
+                style={[styles.scanBtn, { marginTop: spacing.sm }]}
+                activeOpacity={0.7}
+                onPress={() => {
+                  const alreadySaved = savedRecipes.some((r) => r.name.toLowerCase() === foodName.trim().toLowerCase());
+                  if (alreadySaved) {
+                    Alert.alert('Already saved', `"${foodName.trim()}" is already in your recipes.`);
+                    return;
+                  }
+                  createLibraryItem.mutate({
+                    type: 'recipe',
+                    name: foodName.trim(),
+                    ingredients: foodIngredients.split(',').map((s) => s.trim()).filter(Boolean),
+                  });
+                  Alert.alert('Saved', `"${foodName.trim()}" saved to recipes.`);
+                }}
+              >
+                <CategoryIcon name="leaf" size={16} color={colors.sageDeep} />
+                <Text style={styles.scanBtnText}>Save as recipe</Text>
+              </TouchableOpacity>
+            ) : null}
           </>
         )}
 
         {/* ── Medication / Cream ── */}
         {(cat === 'medication' || cat === 'cream') && (
           <>
+            {lastMedEntry && (
+              <TouchableOpacity style={styles.repeatBtn} onPress={handleRepeatLastDose} activeOpacity={0.7}>
+                <CategoryIcon name="repeat" size={15} color={colors.sageDeep} />
+                <Text style={styles.repeatBtnText}>
+                  Repeat last dose
+                  {(lastMedEntry.payload as any).library_item_name
+                    ? ` · ${(lastMedEntry.payload as any).library_item_name}`
+                    : ''}
+                  {(lastMedEntry.payload as any).dose
+                    ? ` · ${(lastMedEntry.payload as any).dose}`
+                    : ''}
+                </Text>
+              </TouchableOpacity>
+            )}
             <Text style={styles.fieldLabel}>Select from library</Text>
             {libraryItems.length === 0 ? (
               <TouchableOpacity
@@ -566,6 +672,24 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
                 Add photo
               </SoftButton>
             )}
+
+            <Text style={[styles.fieldLabel, { marginTop: spacing.lg }]}>Severity</Text>
+            <View style={styles.severityRow}>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <TouchableOpacity
+                  key={n}
+                  onPress={() => setPhotoSeverity(n)}
+                  style={[styles.scoreBtn, photoSeverity === n && styles.scoreBtnActive]}
+                >
+                  <Text style={[styles.scoreBtnText, photoSeverity === n && styles.scoreBtnActiveText]}>{n}</Text>
+                </TouchableOpacity>
+              ))}
+              <ScoreDot score={photoSeverity * 2} size={36} />
+            </View>
+            <View style={styles.severityHints}>
+              <Text style={styles.severityHint}>1 = not bad</Text>
+              <Text style={styles.severityHint}>5 = awful</Text>
+            </View>
 
             <Text style={[styles.fieldLabel, { marginTop: spacing.lg }]}>Caption (optional)</Text>
             <TextInput style={styles.input} placeholder="e.g. For tomorrow's appointment"
@@ -686,6 +810,27 @@ const styles = StyleSheet.create({
   photoChangeText: { color: '#fff', fontSize: 13, fontWeight: '500' },
 
   actions: { flexDirection: 'row', gap: 10, marginTop: 20 },
+
+  repeatBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: colors.sageSoft, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 10,
+    borderWidth: 1, borderColor: colors.sage + '40',
+    marginBottom: spacing.md,
+  },
+  repeatBtnText: { fontSize: 14, fontWeight: '500', color: colors.sageDeep, flex: 1 },
+
+  chipScroll: { marginBottom: spacing.sm },
+  chipScrollContent: { gap: 8, paddingBottom: 4 },
+  foodChip: {
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999,
+    backgroundColor: colors.card, borderWidth: 1, borderColor: colors.hairline,
+  },
+  foodChipText: { fontSize: 13.5, fontWeight: '500', color: colors.ink },
+
+  severityRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  severityHints: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm },
+  severityHint: { fontSize: 11, color: colors.muted },
 });
 
 const dtStyles = StyleSheet.create({

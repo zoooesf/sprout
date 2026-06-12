@@ -54,6 +54,10 @@ function getMeta(entry: LogEntry): string | null {
     const score = (entry.payload as any).severity_score;
     return score ? `Score ${score}` : null;
   }
+  if (entry.type === 'photo') {
+    const severity = (entry.payload as any).severity;
+    return severity ? `Severity ${severity}` : null;
+  }
   return null;
 }
 

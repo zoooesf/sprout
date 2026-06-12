@@ -16,6 +16,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { usePhotoEntries } from '@/hooks/usePhotoEntries';
 import type { PhotoPayload, LogEntry } from '@/lib/supabase';
+import { scoreColor } from '@/lib/tokens';
+
+// Maps 1-5 severity to the score gradient (1→green, 5→red)
+function severityColor(severity: number): string {
+  return scoreColor(severity * 2);
+}
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -49,6 +55,16 @@ function BottomScrim({
         <Text style={styles.dateLabel}>{formatDateTime(singleTimestamp!)}</Text>
       ) : (
         <>
+          {payload?.severity != null && (
+            <View style={styles.severityRow}>
+              <View style={[styles.severityDot, { backgroundColor: severityColor(payload.severity) }]}>
+                <Text style={styles.severityNum}>{payload.severity}</Text>
+              </View>
+              <Text style={styles.severityLabel}>
+                {['', 'Mild', 'Low', 'Moderate', 'High', 'Severe'][payload.severity] ?? ''}
+              </Text>
+            </View>
+          )}
           {payload?.caption ? <Text style={styles.caption}>{payload.caption}</Text> : null}
           <Text style={styles.dateLabel}>{formatDateTime(entry!.timestamp)}</Text>
         </>
@@ -236,5 +252,28 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.72)',
     fontSize: 12,
     fontWeight: '400',
+  },
+  severityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  severityDot: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  severityNum: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  severityLabel: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });

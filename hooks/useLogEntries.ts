@@ -189,8 +189,10 @@ export function useCreateLibraryItem() {
   return useMutation({
     mutationFn: async (item: {
       name: string;
-      type: 'medication' | 'cream' | 'supplement' | 'food';
+      type: 'medication' | 'cream' | 'supplement' | 'food' | 'recipe';
       default_dose?: string;
+      ingredients?: string[];
+      barcode?: string;
     }) => {
       const activeSubject = useAuthStore.getState().activeSubject;
       if (!activeSubject) throw new Error('No active subject');
@@ -201,7 +203,8 @@ export function useCreateLibraryItem() {
           type: item.type,
           name: item.name.trim(),
           default_dose: item.default_dose?.trim() || null,
-          ingredients: [],
+          ingredients: item.ingredients ?? [],
+          barcode: item.barcode || null,
         })
         .select()
         .single();
@@ -260,6 +263,47 @@ export function useLibraryItems(type?: 'medication' | 'cream' | 'supplement' | '
       const { data, error } = await query;
       if (error) throw error;
       return data ?? [];
+    },
+  });
+}
+
+/** Queries food or recipe library items across the whole family (no subject filter). */
+export function useFamilyLibraryItems(type: 'food' | 'recipe') {
+  const activeSubject = useAuthStore((s) => s.activeSubject);
+
+  return useQuery({
+    queryKey: ['family-library-items', type],
+    enabled: !!activeSubject?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('library_items')
+        .select('*')
+        .eq('type', type)
+        .order('name');
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+/** Returns the most recent log entry of the given type for the active subject. */
+export function useLastEntry(type: 'medication' | 'cream') {
+  const activeSubject = useAuthStore((s) => s.activeSubject);
+
+  return useQuery({
+    queryKey: ['last-entry', activeSubject?.id, type],
+    enabled: !!activeSubject?.id,
+    queryFn: async (): Promise<LogEntry | null> => {
+      const { data, error } = await supabase
+        .from('log_entries')
+        .select('*')
+        .eq('subject_id', activeSubject!.id)
+        .eq('type', type)
+        .order('timestamp', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
     },
   });
 }

@@ -42,6 +42,7 @@ const ICON_MAP: Record<string, { lib: 'mci' | 'ion'; name: string }> = {
   swap:    { lib: 'mci', name: 'swap-horizontal' },
   scratch: { lib: 'mci', name: 'texture' },
   barcode: { lib: 'mci', name: 'barcode-scan' },
+  repeat:  { lib: 'ion', name: 'repeat-outline' },
   image:   { lib: 'ion', name: 'image-outline' },
   weather: { lib: 'ion', name: 'partly-sunny-outline' },
   warning: { lib: 'ion', name: 'warning-outline' },

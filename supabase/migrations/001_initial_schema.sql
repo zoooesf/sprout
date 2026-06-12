@@ -106,7 +106,8 @@ create policy "families: members can update"
 -- subjects: family members can CRUD
 create policy "subjects: family members"
   on subjects for all
-  using (family_id in (select family_id from profiles where id = auth.uid()));
+  using (family_id in (select family_id from profiles where id = auth.uid()))
+  with check (family_id in (select family_id from profiles where id = auth.uid()));
 
 -- library_items: family members of the subject's family
 create policy "library_items: family members"

@@ -64,7 +64,7 @@ export interface Subject {
 export interface LibraryItem {
   id: string;
   subject_id: string;
-  type: 'medication' | 'cream' | 'supplement' | 'food';
+  type: 'medication' | 'cream' | 'supplement' | 'food' | 'recipe';
   name: string;
   barcode: string | null;
   ingredients: string[];
@@ -132,6 +132,7 @@ export interface CheckInPayload {
 export interface PhotoPayload {
   areas: string[];
   caption?: string;
+  severity?: number; // 1–5, 1 = mild, 5 = severe
 }
 
 export interface NotePayload {

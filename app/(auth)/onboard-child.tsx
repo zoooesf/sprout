@@ -30,13 +30,34 @@ export default function OnboardChildScreen() {
       Alert.alert('Name required', 'Please enter your child\'s name.');
       return;
     }
-    if (!profile?.family_id) return;
 
     setLoading(true);
+
+    // Re-fetch the profile directly from Supabase so we always have the
+    // latest family_id, even if the Zustand store hasn't caught up yet.
+    const session = useAuthStore.getState().session;
+    if (!session?.user) {
+      setLoading(false);
+      Alert.alert('Error', 'No active session. Please sign in again.');
+      return;
+    }
+
+    const { data: freshProfile, error: profileErr } = await supabase
+      .from('profiles')
+      .select('family_id')
+      .eq('id', session.user.id)
+      .single();
+
+    if (profileErr || !freshProfile?.family_id) {
+      setLoading(false);
+      Alert.alert('Error', 'Could not load your family. Please go back and try again.');
+      return;
+    }
+
     const { data: subject, error } = await supabase
       .from('subjects')
       .insert({
-        family_id: profile.family_id,
+        family_id: freshProfile.family_id,
         name: childName.trim(),
         birthday: birthday || null,
         conditions: selectedConditions,
