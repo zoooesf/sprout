@@ -5,6 +5,7 @@ import type { Session } from '@supabase/supabase-js';
 interface AuthState {
   session: Session | null;
   sessionLoaded: boolean;
+  userDataLoaded: boolean;
   profile: Profile | null;
   family: Family | null;
   subjects: Subject[];
@@ -15,6 +16,7 @@ interface AuthState {
   setSession: (session: Session | null) => void;
   setSessionLoaded: () => void;
   setProfile: (profile: Profile | null) => void;
+  setUserDataLoaded: () => void;
   setFamily: (family: Family | null) => void;
   setSubjects: (subjects: Subject[]) => void;
   setActiveSubjectId: (id: string | null) => void;
@@ -25,6 +27,7 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set, get) => ({
   session: null,
   sessionLoaded: false,
+  userDataLoaded: false,
   profile: null,
   family: null,
   subjects: [],
@@ -33,6 +36,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setSession: (session) => set({ session }),
   setSessionLoaded: () => set({ sessionLoaded: true }),
+  setUserDataLoaded: () => set({ userDataLoaded: true }),
   setProfile: (profile) => set({ profile }),
   setFamily: (family) => set({ family }),
   setSubjects: (subjects) => set({ subjects }),
@@ -46,41 +50,47 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { session } = get();
     if (!session?.user) return;
 
-    // Load profile
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', session.user.id)
-      .single();
+    set({ userDataLoaded: false });
 
-    if (!profile) return;
-    set({ profile });
+    try {
+      // Load profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
 
-    if (!profile.family_id) return;
+      if (!profile) return;
+      set({ profile });
 
-    // Load family
-    const { data: family } = await supabase
-      .from('families')
-      .select('*')
-      .eq('id', profile.family_id)
-      .single();
+      if (!profile.family_id) return;
 
-    if (family) set({ family });
+      // Load family
+      const { data: family } = await supabase
+        .from('families')
+        .select('*')
+        .eq('id', profile.family_id)
+        .single();
 
-    // Load subjects
-    const { data: subjects } = await supabase
-      .from('subjects')
-      .select('*')
-      .eq('family_id', profile.family_id)
-      .order('created_at', { ascending: true });
+      if (family) set({ family });
 
-    if (subjects && subjects.length > 0) {
-      set({ subjects, activeSubjectId: subjects[0].id, activeSubject: subjects[0] });
+      // Load subjects
+      const { data: subjects } = await supabase
+        .from('subjects')
+        .select('*')
+        .eq('family_id', profile.family_id)
+        .order('created_at', { ascending: true });
+
+      if (subjects && subjects.length > 0) {
+        set({ subjects, activeSubjectId: subjects[0].id, activeSubject: subjects[0] });
+      }
+    } finally {
+      set({ userDataLoaded: true });
     }
   },
 
   signOut: async () => {
     await supabase.auth.signOut();
-    set({ session: null, profile: null, family: null, subjects: [], activeSubjectId: null, activeSubject: null });
+    set({ session: null, profile: null, family: null, subjects: [], activeSubjectId: null, activeSubject: null, userDataLoaded: false });
   },
 }));
