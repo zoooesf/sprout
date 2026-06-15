@@ -216,6 +216,7 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
   const [sleepQuality, setSleepQuality] = useState<number>(() => p.quality ?? 3);
   const [sleepNotes, setSleepNotes] = useState(() => p.notes ?? '');
   const [selectedLibraryId, setSelectedLibraryId] = useState<string | null>(() => p.library_item_id ?? null);
+  const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
   const [selectedAreas, setSelectedAreas] = useState<string[]>(() => p.areas ?? []);
   const [dose, setDose] = useState(() => p.dose ?? '');
   const [photoSeverity, setPhotoSeverity] = useState<number>(() => p.severity as number ?? 3);
@@ -230,6 +231,7 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
   // Barcode scanner state
   const [showScanner, setShowScanner] = useState(false);
   const [barcodeLoading, setBarcodeLoading] = useState(false);
+  const [scannedItems, setScannedItems] = useState<{ name: string; ingredients: string[] }[]>([]);
 
   const { data: libraryItems = [] } = useLibraryItems(
     cat === 'medication' ? 'medication' : cat === 'cream' ? 'cream' : undefined
@@ -238,8 +240,8 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
   const { data: lastMedEntry } = useLastEntry(
     (cat === 'medication' || cat === 'cream') ? cat as 'medication' | 'cream' : 'medication'
   );
-  const { data: savedFoods = [] } = useFamilyLibraryItems('food');
-  const { data: savedRecipes = [] } = useFamilyLibraryItems('recipe');
+  const { data: savedFoods = [], error: foodsError } = useFamilyLibraryItems('food');
+  const { data: savedRecipes = [], error: recipesError } = useFamilyLibraryItems('recipe');
   const createLibraryItem = useCreateLibraryItem();
 
   const SYMPTOMS = ['Itchy', 'Red patches', 'Dry skin', 'Scratching', 'Cracked', 'Weeping', 'Sleep disrupted', 'Calm', 'Hot to touch'];
@@ -268,8 +270,17 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
       Alert.alert('Not found', 'Could not find this product in Open Food Facts. You can fill in the details manually.');
       return;
     }
-    if (product.name) setFoodName(product.name);
-    if (product.ingredients.length > 0) setFoodIngredients(product.ingredients.join(', '));
+    if (product.name) {
+      const newItem = { name: product.name, ingredients: product.ingredients };
+      setScannedItems((prev) => {
+        const updated = [...prev, newItem];
+        // Merge all ingredients from all scanned items into the text field
+        const allIngredients = updated.flatMap((i) => i.ingredients);
+        const unique = Array.from(new Set(allIngredients));
+        setFoodIngredients(unique.join(', '));
+        return updated;
+      });
+    }
     // Auto-save to food library if not already saved
     const alreadySaved = savedFoods.some((f) => f.barcode === barcode || f.name === product.name);
     if (!alreadySaved && product.name) {
@@ -280,6 +291,16 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
         barcode,
       });
     }
+  };
+
+  const removeScannedItem = (index: number) => {
+    setScannedItems((prev) => {
+      const updated = prev.filter((_, i) => i !== index);
+      const allIngredients = updated.flatMap((i) => i.ingredients);
+      const unique = Array.from(new Set(allIngredients));
+      setFoodIngredients(unique.join(', '));
+      return updated;
+    });
   };
 
   const pickPhoto = () => {
@@ -335,6 +356,7 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
           payload = {
             name: foodName.trim(),
             ingredients: foodIngredients.split(',').map((s) => s.trim()).filter(Boolean),
+            ...(scannedItems.length > 0 && { scanned_items: scannedItems }),
           };
           break;
         case 'checkin':
@@ -455,50 +477,74 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
         {/* ── Food ── */}
         {cat === 'food' && (
           <>
-            {(savedFoods.length > 0 || savedRecipes.length > 0) && (
+            <Text style={styles.fieldLabel}>Recipes</Text>
+            {recipesError ? (
+              <Text style={styles.libraryError}>Could not load recipes: {(recipesError as any)?.message}</Text>
+            ) : savedRecipes.length === 0 ? (
+              <Text style={styles.emptyHint}>No recipes saved yet — fill in a meal below and tap "Save as recipe"</Text>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipScrollContent}>
+                {savedRecipes.map((r) => {
+                  const isSelected = selectedRecipeId === r.id;
+                  return (
+                    <TouchableOpacity
+                      key={r.id}
+                      style={[styles.foodChip, isSelected && styles.foodChipSelected]}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        setFoodName(r.name);
+                        setFoodIngredients(r.ingredients.join(', '));
+                        setSelectedRecipeId(r.id);
+                      }}
+                    >
+                      {isSelected && <CategoryIcon name="check" size={13} color={colors.sageDeep} />}
+                      <Text style={[styles.foodChipText, isSelected && styles.foodChipTextSelected]}>{r.name}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            )}
+
+            {savedFoods.length > 0 && (
               <>
-                {savedRecipes.length > 0 && (
-                  <>
-                    <Text style={styles.fieldLabel}>Recipes</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipScrollContent}>
-                      {savedRecipes.map((r) => (
-                        <TouchableOpacity
-                          key={r.id}
-                          style={styles.foodChip}
-                          activeOpacity={0.7}
-                          onPress={() => {
-                            setFoodName(r.name);
-                            setFoodIngredients(r.ingredients.join(', '));
-                          }}
-                        >
-                          <Text style={styles.foodChipText}>{r.name}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </>
-                )}
-                {savedFoods.length > 0 && (
-                  <>
-                    <Text style={[styles.fieldLabel, { marginTop: spacing.sm }]}>Saved foods</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipScrollContent}>
-                      {savedFoods.map((f) => (
-                        <TouchableOpacity
-                          key={f.id}
-                          style={styles.foodChip}
-                          activeOpacity={0.7}
-                          onPress={() => {
-                            setFoodName(f.name);
-                            setFoodIngredients(f.ingredients.join(', '));
-                          }}
-                        >
-                          <Text style={styles.foodChipText}>{f.name}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </>
-                )}
+                <Text style={[styles.fieldLabel, { marginTop: spacing.sm }]}>Saved foods</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipScrollContent}>
+                  {savedFoods.map((f) => (
+                    <TouchableOpacity
+                      key={f.id}
+                      style={styles.foodChip}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        setFoodName(f.name);
+                        setFoodIngredients(f.ingredients.join(', '));
+                      }}
+                    >
+                      <Text style={styles.foodChipText}>{f.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </>
             )}
+            {scannedItems.length > 0 && (
+              <>
+                <Text style={[styles.fieldLabel, { marginTop: spacing.sm }]}>Scanned items</Text>
+                <View style={{ gap: 6, marginBottom: spacing.sm }}>
+                  {scannedItems.map((item, idx) => (
+                    <View key={idx} style={styles.scannedItemRow}>
+                      <CategoryIcon name="barcode" size={14} color={colors.sageDeep} />
+                      <Text style={styles.scannedItemName} numberOfLines={1}>{item.name}</Text>
+                      {item.ingredients.length > 0 && (
+                        <Text style={styles.scannedItemCount}>{item.ingredients.length} ingredients</Text>
+                      )}
+                      <TouchableOpacity onPress={() => removeScannedItem(idx)} style={styles.scannedItemRemove} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <CategoryIcon name="close" size={13} color={colors.muted} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              </>
+            )}
+
             <TouchableOpacity
               style={styles.scanBtn}
               onPress={() => setShowScanner(true)}
@@ -511,7 +557,7 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
                 <CategoryIcon name="barcode" size={18} color={colors.sageDeep} />
               )}
               <Text style={styles.scanBtnText}>
-                {barcodeLoading ? 'Looking up…' : 'Scan barcode'}
+                {barcodeLoading ? 'Looking up…' : scannedItems.length > 0 ? 'Scan another item' : 'Scan barcode'}
               </Text>
             </TouchableOpacity>
 
@@ -519,33 +565,44 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
               What did {activeSubject?.name ?? 'your child'} eat?
             </Text>
             <TextInput style={styles.input} placeholder="e.g. Pasta, tomato sauce" placeholderTextColor={colors.faint}
-              value={foodName} onChangeText={setFoodName} />
+              value={foodName} onChangeText={(v) => { setFoodName(v); setSelectedRecipeId(null); }} />
             <Text style={[styles.fieldLabel, { marginTop: spacing.lg }]}>Ingredients (comma-separated)</Text>
             <TextInput style={[styles.input, styles.inputMulti]} placeholder="Wheat, tomato, basil, olive oil…"
               placeholderTextColor={colors.faint} value={foodIngredients} onChangeText={setFoodIngredients}
               multiline numberOfLines={3} textAlignVertical="top" />
-            {foodName.trim() ? (
-              <TouchableOpacity
-                style={[styles.scanBtn, { marginTop: spacing.sm }]}
-                activeOpacity={0.7}
-                onPress={() => {
-                  const alreadySaved = savedRecipes.some((r) => r.name.toLowerCase() === foodName.trim().toLowerCase());
-                  if (alreadySaved) {
-                    Alert.alert('Already saved', `"${foodName.trim()}" is already in your recipes.`);
-                    return;
-                  }
-                  createLibraryItem.mutate({
-                    type: 'recipe',
-                    name: foodName.trim(),
-                    ingredients: foodIngredients.split(',').map((s) => s.trim()).filter(Boolean),
-                  });
-                  Alert.alert('Saved', `"${foodName.trim()}" saved to recipes.`);
-                }}
-              >
-                <CategoryIcon name="leaf" size={16} color={colors.sageDeep} />
-                <Text style={styles.scanBtnText}>Save as recipe</Text>
-              </TouchableOpacity>
-            ) : null}
+            {foodName.trim() ? (() => {
+              const alreadySaved = savedRecipes.some((r) => r.name.toLowerCase() === foodName.trim().toLowerCase());
+              const saving = createLibraryItem.isPending;
+              return (
+                <TouchableOpacity
+                  style={[styles.scanBtn, { marginTop: spacing.sm }, alreadySaved && styles.scanBtnSaved]}
+                  activeOpacity={alreadySaved || saving ? 1 : 0.7}
+                  disabled={alreadySaved || saving}
+                  onPress={() => {
+                    createLibraryItem.mutate(
+                      {
+                        type: 'recipe',
+                        name: foodName.trim(),
+                        ingredients: foodIngredients.split(',').map((s) => s.trim()).filter(Boolean),
+                      },
+                      {
+                        onSuccess: (data) => Alert.alert('Saved', JSON.stringify(data)),
+                        onError: (e: any) => Alert.alert('Could not save recipe', e?.message ?? JSON.stringify(e)),
+                      }
+                    );
+                  }}
+                >
+                  {saving ? (
+                    <ActivityIndicator size="small" color={colors.sageDeep} />
+                  ) : (
+                    <CategoryIcon name={alreadySaved ? 'check' : 'leaf'} size={16} color={alreadySaved ? colors.sage : colors.sageDeep} />
+                  )}
+                  <Text style={[styles.scanBtnText, alreadySaved && { color: colors.sage }]}>
+                    {alreadySaved ? 'Saved' : saving ? 'Saving…' : 'Save as recipe'}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })() : null}
           </>
         )}
 
@@ -755,6 +812,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   scanBtnText: { fontSize: 14, fontWeight: '500', color: colors.sageDeep },
+  scanBtnSaved: { backgroundColor: colors.sageSoft, borderColor: colors.sage + '80' },
+  emptyHint: { fontSize: 13, color: colors.muted, fontStyle: 'italic', marginBottom: spacing.sm },
+  libraryError: { fontSize: 13, color: colors.terracotta, marginBottom: spacing.sm },
 
   scoreRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginBottom: spacing.md },
   scoreBtn: {
@@ -823,10 +883,25 @@ const styles = StyleSheet.create({
   chipScroll: { marginBottom: spacing.sm },
   chipScrollContent: { gap: 8, paddingBottom: 4 },
   foodChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999,
     backgroundColor: colors.card, borderWidth: 1, borderColor: colors.hairline,
   },
+  foodChipSelected: {
+    backgroundColor: colors.sageSoft, borderColor: colors.sageDeep,
+  },
   foodChipText: { fontSize: 13.5, fontWeight: '500', color: colors.ink },
+  foodChipTextSelected: { color: colors.sageDeep, fontWeight: '600' },
+
+  scannedItemRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: colors.sageSoft, borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 9,
+    borderWidth: 1, borderColor: colors.sage + '40',
+  },
+  scannedItemName: { flex: 1, fontSize: 13.5, fontWeight: '500', color: colors.ink },
+  scannedItemCount: { fontSize: 12, color: colors.muted },
+  scannedItemRemove: { padding: 2 },
 
   severityRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   severityHints: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm },

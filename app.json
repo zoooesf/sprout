@@ -36,7 +36,14 @@
     },
     "web": {
       "favicon": "./assets/icon.png",
-      "bundler": "metro"
+      "bundler": "metro",
+      "name": "Sprout",
+      "shortName": "Sprout",
+      "description": "Track your child's health with Sprout",
+      "themeColor": "#6B8E5A",
+      "backgroundColor": "#F4EFE6",
+      "display": "standalone",
+      "orientation": "portrait"
     },
     "plugins": [
       "expo-router",

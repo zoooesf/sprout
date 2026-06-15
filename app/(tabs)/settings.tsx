@@ -10,6 +10,7 @@ import { colors, typography, spacing } from '@/lib/tokens';
 import { useAuthStore } from '@/stores/auth';
 import { Card } from '@/components/Card';
 import { CategoryIcon } from '@/components/icons/CategoryIcon';
+import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import {
   getEveningReminderEnabled,
   scheduleEveningReminder,
@@ -22,6 +23,20 @@ export default function SettingsScreen() {
   const subjects = useAuthStore((s) => s.subjects);
   const activeSubject = useAuthStore((s) => s.activeSubject);
   const signOut = useAuthStore((s) => s.signOut);
+
+  const { canInstall, isInstalled, isIOS, triggerInstall } = useInstallPrompt();
+
+  const handleAddToHomeScreen = () => {
+    if (isIOS) {
+      Alert.alert(
+        'Add to Home Screen',
+        "Tap the Share button (□↑) at the bottom of Safari, then choose \"Add to Home Screen\".",
+        [{ text: 'Got it' }]
+      );
+      return;
+    }
+    triggerInstall();
+  };
 
   const [eveningReminder, setEveningReminder] = useState(false);
   const [reminderLoading, setReminderLoading] = useState(true);
@@ -134,6 +149,19 @@ export default function SettingsScreen() {
             last
           />
         </SettingsSection>
+
+        {/* Add to Home Screen — web only */}
+        {Platform.OS === 'web' && !isInstalled && (canInstall || isIOS) && (
+          <SettingsSection title="App">
+            <SettingsRow
+              icon="leaf" iconBg={colors.sageSoft} iconColor={colors.sageDeep}
+              title="Add to Home Screen" sub="Open Sprout like a native app"
+              rightEl={<CategoryIcon name="chevR" size={16} color={colors.faint} />}
+              onPress={handleAddToHomeScreen}
+              last
+            />
+          </SettingsSection>
+        )}
 
         {/* Library */}
         <SettingsSection title="Your library">

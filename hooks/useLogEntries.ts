@@ -213,6 +213,7 @@ export function useCreateLibraryItem() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['library-items'] });
+      queryClient.invalidateQueries({ queryKey: ['family-library-items'] });
     },
   });
 }
