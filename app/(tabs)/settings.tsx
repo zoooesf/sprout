@@ -26,16 +26,17 @@ export default function SettingsScreen() {
 
   const { canInstall, isInstalled, isIOS, triggerInstall } = useInstallPrompt();
 
-  const handleAddToHomeScreen = () => {
-    if (isIOS) {
-      Alert.alert(
-        'Add to Home Screen',
-        "Tap the Share button (□↑) at the bottom of Safari, then choose \"Add to Home Screen\".",
-        [{ text: 'Got it' }]
-      );
+  const handleAddToHomeScreen = async () => {
+    if (canInstall) {
+      await triggerInstall();
       return;
     }
-    triggerInstall();
+    // iOS Safari (and any browser that doesn't support beforeinstallprompt)
+    Alert.alert(
+      'Add to Home Screen',
+      'Tap the Share button at the bottom of Safari, then choose "Add to Home Screen".',
+      [{ text: 'Got it' }]
+    );
   };
 
   const [eveningReminder, setEveningReminder] = useState(false);
@@ -151,7 +152,7 @@ export default function SettingsScreen() {
         </SettingsSection>
 
         {/* Add to Home Screen — web only */}
-        {Platform.OS === 'web' && !isInstalled && (canInstall || isIOS) && (
+        {Platform.OS === 'web' && !isInstalled && (
           <SettingsSection title="App">
             <SettingsRow
               icon="leaf" iconBg={colors.sageSoft} iconColor={colors.sageDeep}
