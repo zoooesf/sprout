@@ -24,19 +24,15 @@ export default function SettingsScreen() {
   const activeSubject = useAuthStore((s) => s.activeSubject);
   const signOut = useAuthStore((s) => s.signOut);
 
-  const { canInstall, isInstalled, isIOS, triggerInstall } = useInstallPrompt();
+  const { canInstall, isInstalled, triggerInstall } = useInstallPrompt();
+  const [showInstallInstructions, setShowInstallInstructions] = useState(false);
 
   const handleAddToHomeScreen = async () => {
     if (canInstall) {
       await triggerInstall();
       return;
     }
-    // iOS Safari (and any browser that doesn't support beforeinstallprompt)
-    Alert.alert(
-      'Add to Home Screen',
-      'Tap the Share button at the bottom of Safari, then choose "Add to Home Screen".',
-      [{ text: 'Got it' }]
-    );
+    setShowInstallInstructions((v) => !v);
   };
 
   const [eveningReminder, setEveningReminder] = useState(false);
@@ -157,10 +153,17 @@ export default function SettingsScreen() {
             <SettingsRow
               icon="leaf" iconBg={colors.sageSoft} iconColor={colors.sageDeep}
               title="Add to Home Screen" sub="Open Sprout like a native app"
-              rightEl={<CategoryIcon name="chevR" size={16} color={colors.faint} />}
+              rightEl={<CategoryIcon name={showInstallInstructions ? 'close' : 'chevR'} size={16} color={colors.faint} />}
               onPress={handleAddToHomeScreen}
-              last
+              last={!showInstallInstructions}
             />
+            {showInstallInstructions && (
+              <View style={styles.installInstructions}>
+                <Text style={styles.installStep}>1. Tap the <Text style={styles.installBold}>Share</Text> button (the box with an arrow) at the bottom of Safari</Text>
+                <Text style={styles.installStep}>2. Scroll down and tap <Text style={styles.installBold}>"Add to Home Screen"</Text></Text>
+                <Text style={styles.installStep}>3. Tap <Text style={styles.installBold}>Add</Text> in the top right</Text>
+              </View>
+            )}
           </SettingsSection>
         )}
 
@@ -288,4 +291,8 @@ const styles = StyleSheet.create({
   rowSub: { fontSize: 12, color: colors.muted, marginTop: 1 },
 
   version: { fontSize: 12, color: colors.faint, textAlign: 'center', marginTop: spacing.sm },
+
+  installInstructions: { padding: 16, paddingTop: 4, gap: 8, borderTopWidth: 1, borderTopColor: colors.hairline },
+  installStep: { fontSize: 13, color: colors.muted, lineHeight: 20 },
+  installBold: { fontWeight: '600', color: colors.ink },
 });
