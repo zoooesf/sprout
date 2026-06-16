@@ -47,6 +47,7 @@ export function BarcodeScannerModal({ onScan, onClose }: Props) {
             <CameraView
               style={StyleSheet.absoluteFill}
               facing="back"
+              barcodeScannerEnabled
               barcodeScannerSettings={{
                 barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'qr'],
               }}
