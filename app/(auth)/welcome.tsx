@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, typography, spacing } from '@/lib/tokens';
@@ -18,6 +18,11 @@ export default function WelcomeScreen() {
         {/* Illustration placeholder */}
         <View style={styles.illustration}>
           <View style={styles.illustrationCircle} />
+          <Image
+            source={require('@/assets/sproutLogo.png')}
+            style={styles.illustrationLogo}
+            resizeMode="contain"
+          />
         </View>
 
         {/* Headline */}
@@ -100,6 +105,11 @@ const styles = StyleSheet.create({
     height: 180,
     borderRadius: 90,
     backgroundColor: colors.sageSoft,
+  },
+  illustrationLogo: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
   },
   headline: {
     fontSize: typography.sizes['5xl'],
