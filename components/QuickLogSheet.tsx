@@ -10,11 +10,11 @@ import {
 } from 'react-native';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
+import { launchScanner, dismissScanner, onModernBarcodeScanned } from 'expo-camera';
 import { colors, typography, spacing, categories, type CategoryKey } from '@/lib/tokens';
 import { CategoryIcon } from './icons/CategoryIcon';
 import { SoftButton } from './SoftButton';
 import { ScoreDot } from './ScoreDot';
-import { BarcodeScannerModal } from './BarcodeScannerModal';
 import { useCreateLogEntry, useUpdateLogEntry, useLibraryItems, useLastEntry, useFamilyLibraryItems, useCreateLibraryItem } from '@/hooks/useLogEntries';
 import { lookupBarcode } from '@/lib/openFoodFacts';
 import { fetchCurrentWeather } from '@/lib/weather';
@@ -225,11 +225,9 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
   const [photoUri, setPhotoUri] = useState<string | null>(
     () => editEntry?.photo_urls?.[0] ?? null
   );
-  const [photoBase64, setPhotoBase64] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   // Barcode scanner state
-  const [showScanner, setShowScanner] = useState(false);
   const [barcodeLoading, setBarcodeLoading] = useState(false);
   const [scannedItems, setScannedItems] = useState<{ name: string; ingredients: string[] }[]>([]);
 
@@ -261,8 +259,18 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
     if (lp.areas) setSelectedAreas(lp.areas);
   };
 
+  const openScanner = async () => {
+    const subscription = onModernBarcodeScanned(async ({ data }) => {
+      subscription.remove();
+      if (Platform.OS === 'ios') dismissScanner();
+      await handleBarcodeScan(data);
+    });
+    await launchScanner({
+      barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'qr'],
+    });
+  };
+
   const handleBarcodeScan = async (barcode: string) => {
-    setShowScanner(false);
     setBarcodeLoading(true);
     const product = await lookupBarcode(barcode);
     setBarcodeLoading(false);
@@ -313,11 +321,9 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
             quality: 0.8,
             allowsEditing: true,
             aspect: [4, 3],
-            base64: true,
           });
           if (!result.canceled && result.assets[0]) {
             setPhotoUri(result.assets[0].uri);
-            setPhotoBase64(result.assets[0].base64 ?? null);
           }
         },
       },
@@ -329,11 +335,9 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
             quality: 0.8,
             allowsEditing: true,
             aspect: [4, 3],
-            base64: true,
           });
           if (!result.canceled && result.assets[0]) {
             setPhotoUri(result.assets[0].uri);
-            setPhotoBase64(result.assets[0].base64 ?? null);
           }
         },
       },
@@ -378,10 +382,10 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
           break;
         }
         case 'photo': {
-          if (photoUri && photoUri.startsWith('file://') && photoBase64 && activeSubject) {
+          if (photoUri && photoUri.startsWith('file://') && activeSubject) {
             setUploadingPhoto(true);
             try {
-              const url = await uploadPhoto(activeSubject.id, photoUri, photoBase64);
+              const url = await uploadPhoto(activeSubject.id, photoUri);
               photoUrls = [url];
             } finally {
               setUploadingPhoto(false);
@@ -416,13 +420,6 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
 
   return (
     <>
-      {showScanner && (
-        <BarcodeScannerModal
-          onScan={handleBarcodeScan}
-          onClose={() => setShowScanner(false)}
-        />
-      )}
-
       <ScrollView contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled">
         {/* Form header */}
         <View style={styles.formHeader}>
@@ -547,7 +544,7 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
 
             <TouchableOpacity
               style={styles.scanBtn}
-              onPress={() => setShowScanner(true)}
+              onPress={openScanner}
               activeOpacity={0.7}
               disabled={barcodeLoading}
             >
