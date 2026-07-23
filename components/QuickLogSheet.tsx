@@ -2,7 +2,7 @@
  * QuickLogSheet — bottom sheet with category picker + contextual log form.
  * Matches the design's QuickLogPicker → QuickLogForm flow.
  */
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, createElement } from 'react';
 import {
   View, Text, StyleSheet, Modal, TouchableOpacity, TouchableWithoutFeedback,
   ScrollView, TextInput, Alert, KeyboardAvoidingView, Platform, Animated, Easing,
@@ -10,11 +10,11 @@ import {
 } from 'react-native';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
-import { launchScanner, dismissScanner, onModernBarcodeScanned } from 'expo-camera';
 import { colors, typography, spacing, categories, type CategoryKey } from '@/lib/tokens';
 import { CategoryIcon } from './icons/CategoryIcon';
 import { SoftButton } from './SoftButton';
 import { ScoreDot } from './ScoreDot';
+import { BarcodeScannerModal } from './BarcodeScannerModal';
 import { useCreateLogEntry, useUpdateLogEntry, useLibraryItems, useLastEntry, useFamilyLibraryItems, useCreateLibraryItem } from '@/hooks/useLogEntries';
 import { lookupBarcode } from '@/lib/openFoodFacts';
 import { fetchCurrentWeather } from '@/lib/weather';
@@ -43,6 +43,8 @@ export function QuickLogSheet({ onClose: externalClose, editEntry }: QuickLogShe
   const [selectedCat, setSelectedCat] = useState<CategoryKey | null>(
     editEntry ? editEntry.type as CategoryKey : null
   );
+  const [showScanner, setShowScanner] = useState(false);
+  const onScanRef = useRef<((barcode: string) => void) | null>(null);
 
   const slideAnim = useRef(new Animated.Value(600)).current;
 
@@ -64,33 +66,51 @@ export function QuickLogSheet({ onClose: externalClose, editEntry }: QuickLogShe
     }).start(() => externalClose());
   }, [externalClose]);
 
+  const requestScan = useCallback((onScan: (barcode: string) => void) => {
+    onScanRef.current = onScan;
+    setShowScanner(true);
+  }, []);
+
   return (
-    <Modal visible transparent animationType="none" onRequestClose={close}>
-      <View style={{ flex: 1 }}>
-        <TouchableWithoutFeedback onPress={close}>
-          <View style={styles.backdrop} />
-        </TouchableWithoutFeedback>
-        <KeyboardAvoidingView
-          style={styles.kavContainer}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          pointerEvents="box-none"
-        >
-          <Animated.View style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}>
-            <View style={styles.handle} />
-            {!selectedCat ? (
-              <CategoryPicker onPick={setSelectedCat} />
-            ) : (
-              <LogForm
-                cat={selectedCat}
-                onBack={editEntry ? close : () => setSelectedCat(null)}
-                onClose={close}
-                editEntry={editEntry}
-              />
-            )}
-          </Animated.View>
-        </KeyboardAvoidingView>
-      </View>
-    </Modal>
+    <>
+      {showScanner && (
+        <BarcodeScannerModal
+          onScan={(barcode) => {
+            setShowScanner(false);
+            onScanRef.current?.(barcode);
+            onScanRef.current = null;
+          }}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
+      <Modal visible transparent animationType="none" onRequestClose={close}>
+        <View style={{ flex: 1 }}>
+          <TouchableWithoutFeedback onPress={close}>
+            <View style={styles.backdrop} />
+          </TouchableWithoutFeedback>
+          <KeyboardAvoidingView
+            style={styles.kavContainer}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            pointerEvents="box-none"
+          >
+            <Animated.View style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}>
+              <View style={styles.handle} />
+              {!selectedCat ? (
+                <CategoryPicker onPick={setSelectedCat} />
+              ) : (
+                <LogForm
+                  cat={selectedCat}
+                  onBack={editEntry ? close : () => setSelectedCat(null)}
+                  onClose={close}
+                  editEntry={editEntry}
+                  requestScan={requestScan}
+                />
+              )}
+            </Animated.View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -126,8 +146,15 @@ function CategoryPicker({ onPick }: { onPick: (cat: CategoryKey) => void }) {
 
 type ActivePicker = 'date' | 'time' | null;
 
+const toDateInputValue = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const toTimeInputValue = (d: Date) =>
+  `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+
 function DateTimeRow({ value, onChange }: { value: Date; onChange: (d: Date) => void }) {
   const [activePicker, setActivePicker] = useState<ActivePicker>(null);
+  const webInputRef = useRef<any>(null);
 
   const formattedDate = value.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
   const formattedTime = value.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -157,6 +184,29 @@ function DateTimeRow({ value, onChange }: { value: Date; onChange: (d: Date) => 
     } else {
       setActivePicker((p) => (p === 'time' ? null : 'time'));
     }
+  };
+
+  // @react-native-community/datetimepicker has no web implementation, so on
+  // web we drive a native <input type="date"|"time"> instead.
+  useEffect(() => {
+    if (Platform.OS === 'web' && activePicker && webInputRef.current) {
+      webInputRef.current.focus?.();
+      webInputRef.current.showPicker?.();
+    }
+  }, [activePicker]);
+
+  const handleWebChange = (e: any) => {
+    const raw = e.target.value;
+    if (!raw) return;
+    const next = new Date(value);
+    if (activePicker === 'date') {
+      const [y, m, d] = raw.split('-').map(Number);
+      next.setFullYear(y, m - 1, d);
+    } else if (activePicker === 'time') {
+      const [h, min] = raw.split(':').map(Number);
+      next.setHours(h, min, 0, 0);
+    }
+    onChange(next);
   };
 
   return (
@@ -190,11 +240,30 @@ function DateTimeRow({ value, onChange }: { value: Date; onChange: (d: Date) => 
           textColor={colors.ink}
         />
       )}
+      {Platform.OS === 'web' && activePicker !== null && createElement('input', {
+        key: activePicker,
+        ref: webInputRef,
+        type: activePicker,
+        value: activePicker === 'date' ? toDateInputValue(value) : toTimeInputValue(value),
+        onChange: handleWebChange,
+        onBlur: () => setActivePicker(null),
+        style: {
+          marginTop: 6,
+          height: 40,
+          padding: '8px 12px',
+          borderRadius: 12,
+          border: `1px solid ${colors.hairline}`,
+          fontSize: 14,
+          color: colors.ink,
+          backgroundColor: colors.card,
+          outline: 'none',
+        },
+      })}
     </View>
   );
 }
 
-function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack: () => void; onClose: () => void; editEntry?: LogEntry }) {
+function LogForm({ cat, onBack, onClose, editEntry, requestScan }: { cat: CategoryKey; onBack: () => void; onClose: () => void; editEntry?: LogEntry; requestScan: (onScan: (barcode: string) => void) => void }) {
   const meta = categories[cat];
   const activeSubject = useAuthStore((s) => s.activeSubject);
   const createEntry = useCreateLogEntry();
@@ -259,17 +328,6 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
     if (lp.areas) setSelectedAreas(lp.areas);
   };
 
-  const openScanner = async () => {
-    const subscription = onModernBarcodeScanned(async ({ data }) => {
-      subscription.remove();
-      if (Platform.OS === 'ios') dismissScanner();
-      await handleBarcodeScan(data);
-    });
-    await launchScanner({
-      barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'qr'],
-    });
-  };
-
   const handleBarcodeScan = async (barcode: string) => {
     setBarcodeLoading(true);
     const product = await lookupBarcode(barcode);
@@ -311,7 +369,26 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
     });
   };
 
+  const pickFromLibrary = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: [4, 3],
+    });
+    if (!result.canceled && result.assets[0]) {
+      setPhotoUri(result.assets[0].uri);
+    }
+  };
+
   const pickPhoto = () => {
+    // Alert.alert has no interactive-button UI on web, so the Camera/Library
+    // choice below never fires there. The browser's own file picker already
+    // offers a camera option on mobile, so go straight to the library there.
+    if (Platform.OS === 'web') {
+      pickFromLibrary();
+      return;
+    }
     Alert.alert('Add photo', 'Choose a source', [
       {
         text: 'Camera',
@@ -327,20 +404,7 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
           }
         },
       },
-      {
-        text: 'Photo Library',
-        onPress: async () => {
-          const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            quality: 0.8,
-            allowsEditing: true,
-            aspect: [4, 3],
-          });
-          if (!result.canceled && result.assets[0]) {
-            setPhotoUri(result.assets[0].uri);
-          }
-        },
-      },
+      { text: 'Photo Library', onPress: pickFromLibrary },
       { text: 'Cancel', style: 'cancel' },
     ]);
   };
@@ -544,7 +608,7 @@ function LogForm({ cat, onBack, onClose, editEntry }: { cat: CategoryKey; onBack
 
             <TouchableOpacity
               style={styles.scanBtn}
-              onPress={openScanner}
+              onPress={() => requestScan(handleBarcodeScan)}
               activeOpacity={0.7}
               disabled={barcodeLoading}
             >
