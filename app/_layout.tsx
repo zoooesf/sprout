@@ -63,6 +63,7 @@ export default function RootLayout() {
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="library" options={{ presentation: 'modal', headerShown: false }} />
+        <Stack.Screen name="search" options={{ presentation: 'modal', headerShown: false }} />
         <Stack.Screen name="photo-viewer" options={{ presentation: 'transparentModal', headerShown: false, animation: 'fade' }} />
       </Stack>
     </QueryClientProvider>

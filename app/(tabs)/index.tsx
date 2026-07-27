@@ -117,7 +117,7 @@ export default function TodayScreen() {
             </TouchableOpacity>
           )}
           <View style={styles.headerIcons}>
-            <TouchableOpacity style={styles.iconBtn}>
+            <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/search')}>
               <CategoryIcon name="search" size={18} color={colors.muted} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.iconBtn}>
