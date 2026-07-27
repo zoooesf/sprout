@@ -152,6 +152,7 @@ export default function PhotoViewer() {
         <Image source={{ uri: singleUrl! }} style={styles.image} resizeMode="contain" />
       ) : (
         <FlatList
+          style={styles.list}
           data={photoEntries}
           keyExtractor={(e) => e.id}
           horizontal
@@ -226,6 +227,9 @@ const styles = StyleSheet.create({
   center: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  list: {
+    flex: 1,
   },
   page: {
     width: SCREEN_W,
