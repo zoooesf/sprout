@@ -25,7 +25,7 @@ function severityColor(severity: number): string {
   return scoreColor(severity * 2);
 }
 
-const { width: SCREEN_W } = Dimensions.get('window');
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
@@ -237,11 +237,11 @@ const styles = StyleSheet.create({
   },
   page: {
     width: SCREEN_W,
-    flex: 1,
+    height: SCREEN_H,
   },
   image: {
-    flex: 1,
     width: '100%',
+    height: '100%',
   },
   closeBtn: {
     position: 'absolute',
