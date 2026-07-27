@@ -1,8 +1,10 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, StyleSheet, Modal, TouchableOpacity, ActivityIndicator,
+  View, Text, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, Platform,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { BrowserMultiFormatReader } from '@zxing/browser';
+import { BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { colors, typography, spacing } from '@/lib/tokens';
 import { CategoryIcon } from './icons/CategoryIcon';
 
@@ -11,10 +13,23 @@ interface Props {
   onClose: () => void;
 }
 
+// expo-camera's web CameraView only ever detects QR codes (see its
+// useWebQRScanner), so linear product barcodes (UPC/EAN/etc.) never fire
+// onBarcodeScanned in the PWA. Poll captured frames through ZXing instead
+// when running on web to cover those formats too.
+const WEB_SCAN_INTERVAL_MS = 500;
+const WEB_BARCODE_FORMATS = [
+  BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A,
+  BarcodeFormat.UPC_E, BarcodeFormat.CODE_128, BarcodeFormat.CODE_39,
+  BarcodeFormat.QR_CODE,
+];
+
 export function BarcodeScannerModal({ onScan, onClose }: Props) {
   const [permission, requestPermission] = useCameraPermissions();
   const [didScan, setDidScan] = useState(false);
   const scanLock = useRef(false);
+  const cameraRef = useRef<CameraView>(null);
+  const webBusy = useRef(false);
 
   const handleBarcodeScanned = ({ data }: { data: string }) => {
     if (scanLock.current) return;
@@ -22,6 +37,34 @@ export function BarcodeScannerModal({ onScan, onClose }: Props) {
     setDidScan(true);
     onScan(data);
   };
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !permission?.granted || didScan) return;
+
+    const hints = new Map();
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, WEB_BARCODE_FORMATS);
+    const reader = new BrowserMultiFormatReader(hints);
+
+    const interval = setInterval(async () => {
+      if (webBusy.current || scanLock.current) return;
+      webBusy.current = true;
+      try {
+        const picture = await cameraRef.current?.takePictureAsync({
+          base64: true, quality: 0.6, skipProcessing: true,
+        });
+        if (picture?.uri) {
+          const result = await reader.decodeFromImageUrl(picture.uri);
+          handleBarcodeScanned({ data: result.getText() });
+        }
+      } catch {
+        // no barcode found in this frame — keep polling
+      } finally {
+        webBusy.current = false;
+      }
+    }, WEB_SCAN_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, [permission?.granted, didScan]);
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
@@ -45,9 +88,9 @@ export function BarcodeScannerModal({ onScan, onClose }: Props) {
         ) : (
           <>
             <CameraView
+              ref={cameraRef}
               style={StyleSheet.absoluteFill}
               facing="back"
-              barcodeScannerEnabled
               barcodeScannerSettings={{
                 barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'qr'],
               }}
