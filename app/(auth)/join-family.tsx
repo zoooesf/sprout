@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, Alert, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
+import { alert } from '@/lib/alert';
 import { useAuthStore } from '@/stores/auth';
 import { colors, typography, spacing } from '@/lib/tokens';
 import { SoftButton } from '@/components/SoftButton';
@@ -15,7 +16,7 @@ export default function JoinFamilyScreen() {
 
   const handleJoin = async () => {
     if (!inviteCode.trim()) {
-      Alert.alert('Code required', 'Please enter the invite code from your co-parent.');
+      alert('Code required', 'Please enter the invite code from your co-parent.');
       return;
     }
     if (!session?.user) return;
@@ -30,7 +31,7 @@ export default function JoinFamilyScreen() {
 
     if (findErr || !family) {
       setLoading(false);
-      Alert.alert('Invalid code', 'No family found with that invite code. Check with your co-parent.');
+      alert('Invalid code', 'No family found with that invite code. Check with your co-parent.');
       return;
     }
 
@@ -42,7 +43,7 @@ export default function JoinFamilyScreen() {
 
     setLoading(false);
     if (updateErr) {
-      Alert.alert('Error', updateErr.message);
+      alert('Error', updateErr.message);
       return;
     }
 

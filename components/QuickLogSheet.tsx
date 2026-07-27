@@ -5,11 +5,12 @@
 import React, { useState, useRef, useEffect, useCallback, createElement } from 'react';
 import {
   View, Text, StyleSheet, Modal, TouchableOpacity, TouchableWithoutFeedback,
-  ScrollView, TextInput, Alert, KeyboardAvoidingView, Platform, Animated, Easing,
+  ScrollView, TextInput, KeyboardAvoidingView, Platform, Animated, Easing,
   Image, ActivityIndicator,
 } from 'react-native';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
+import { alert } from '@/lib/alert';
 import { colors, typography, spacing, categories, type CategoryKey } from '@/lib/tokens';
 import { CategoryIcon } from './icons/CategoryIcon';
 import { SoftButton } from './SoftButton';
@@ -333,7 +334,7 @@ function LogForm({ cat, onBack, onClose, editEntry, requestScan }: { cat: Catego
     const product = await lookupBarcode(barcode);
     setBarcodeLoading(false);
     if (!product) {
-      Alert.alert('Not found', 'Could not find this product in Open Food Facts. You can fill in the details manually.');
+      alert('Not found', 'Could not find this product in Open Food Facts. You can fill in the details manually.');
       return;
     }
     if (product.name) {
@@ -389,7 +390,7 @@ function LogForm({ cat, onBack, onClose, editEntry, requestScan }: { cat: Catego
       pickFromLibrary();
       return;
     }
-    Alert.alert('Add photo', 'Choose a source', [
+    alert('Add photo', 'Choose a source', [
       {
         text: 'Camera',
         onPress: async () => {
@@ -416,11 +417,11 @@ function LogForm({ cat, onBack, onClose, editEntry, requestScan }: { cat: Catego
 
       switch (cat) {
         case 'note':
-          if (!noteText.trim()) { Alert.alert('Note required'); return; }
+          if (!noteText.trim()) { alert('Note required'); return; }
           payload = { text: noteText.trim() };
           break;
         case 'food':
-          if (!foodName.trim()) { Alert.alert('Food name required'); return; }
+          if (!foodName.trim()) { alert('Food name required'); return; }
           payload = {
             name: foodName.trim(),
             ingredients: foodIngredients.split(',').map((s) => s.trim()).filter(Boolean),
@@ -436,7 +437,7 @@ function LogForm({ cat, onBack, onClose, editEntry, requestScan }: { cat: Catego
         case 'medication':
         case 'cream': {
           const item = libraryItems.find((i) => i.id === selectedLibraryId);
-          if (!item) { Alert.alert('Please select an item from your library or add a new one.'); return; }
+          if (!item) { alert('Please select an item from your library or add a new one.'); return; }
           payload = {
             library_item_id: item.id,
             library_item_name: item.name,
@@ -476,7 +477,7 @@ function LogForm({ cat, onBack, onClose, editEntry, requestScan }: { cat: Catego
       }
       onClose();
     } catch (e: any) {
-      Alert.alert('Error saving entry', e?.message ?? 'Unknown error');
+      alert('Error saving entry', e?.message ?? 'Unknown error');
     }
   };
 
@@ -647,8 +648,8 @@ function LogForm({ cat, onBack, onClose, editEntry, requestScan }: { cat: Catego
                         ingredients: foodIngredients.split(',').map((s) => s.trim()).filter(Boolean),
                       },
                       {
-                        onSuccess: (data) => Alert.alert('Saved', JSON.stringify(data)),
-                        onError: (e: any) => Alert.alert('Could not save recipe', e?.message ?? JSON.stringify(e)),
+                        onSuccess: (data) => alert('Saved', JSON.stringify(data)),
+                        onError: (e: any) => alert('Could not save recipe', e?.message ?? JSON.stringify(e)),
                       }
                     );
                   }}

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, KeyboardAvoidingView, Platform, Alert, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
+import { alert } from '@/lib/alert';
 import { colors, typography, spacing } from '@/lib/tokens';
 import { SoftButton } from '@/components/SoftButton';
 import { CategoryIcon } from '@/components/icons/CategoryIcon';
@@ -15,7 +16,7 @@ export default function SignUpScreen() {
 
   const handleSignUp = async () => {
     if (!name.trim() || !email.trim() || !password.trim()) {
-      Alert.alert('Missing info', 'Please fill in all fields.');
+      alert('Missing info', 'Please fill in all fields.');
       return;
     }
     setLoading(true);
@@ -26,7 +27,7 @@ export default function SignUpScreen() {
     });
     setLoading(false);
     if (error) {
-      Alert.alert('Sign up failed', error.message);
+      alert('Sign up failed', error.message);
       return;
     }
     router.replace('/(auth)/onboard-family');

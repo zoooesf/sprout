@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, Alert, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
+import { alert } from '@/lib/alert';
 import { useAuthStore } from '@/stores/auth';
 import { colors, typography, spacing } from '@/lib/tokens';
 import { SoftButton } from '@/components/SoftButton';
@@ -27,7 +28,7 @@ export default function OnboardChildScreen() {
 
   const handleCreate = async () => {
     if (!childName.trim()) {
-      Alert.alert('Name required', 'Please enter your child\'s name.');
+      alert('Name required', 'Please enter your child\'s name.');
       return;
     }
 
@@ -38,7 +39,7 @@ export default function OnboardChildScreen() {
     const session = useAuthStore.getState().session;
     if (!session?.user) {
       setLoading(false);
-      Alert.alert('Error', 'No active session. Please sign in again.');
+      alert('Error', 'No active session. Please sign in again.');
       return;
     }
 
@@ -50,7 +51,7 @@ export default function OnboardChildScreen() {
 
     if (profileErr || !freshProfile?.family_id) {
       setLoading(false);
-      Alert.alert('Error', 'Could not load your family. Please go back and try again.');
+      alert('Error', 'Could not load your family. Please go back and try again.');
       return;
     }
 
@@ -68,7 +69,7 @@ export default function OnboardChildScreen() {
     setLoading(false);
 
     if (error || !subject) {
-      Alert.alert('Error', error?.message ?? 'Could not create child profile.');
+      alert('Error', error?.message ?? 'Could not create child profile.');
       return;
     }
 

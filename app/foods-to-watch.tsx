@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Alert, KeyboardAvoidingView, Platform,
+  TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { alert } from '@/lib/alert';
 import { colors, typography, spacing } from '@/lib/tokens';
 import { Card } from '@/components/Card';
 import { SoftButton } from '@/components/SoftButton';
@@ -25,7 +26,7 @@ export default function FoodsToWatchScreen() {
 
   const handleAdd = async () => {
     if (!name.trim()) {
-      Alert.alert('Name required', 'Please enter a food or ingredient name.');
+      alert('Name required', 'Please enter a food or ingredient name.');
       return;
     }
     try {
@@ -37,12 +38,12 @@ export default function FoodsToWatchScreen() {
       setName('');
       setNotes('');
     } catch (e: any) {
-      Alert.alert('Error', e?.message ?? 'Could not save item.');
+      alert('Error', e?.message ?? 'Could not save item.');
     }
   };
 
   const handleDelete = (id: string, itemName: string) => {
-    Alert.alert('Remove food', `Remove "${itemName}" from your watchlist?`, [
+    alert('Remove food', `Remove "${itemName}" from your watchlist?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Remove', style: 'destructive',
@@ -50,7 +51,7 @@ export default function FoodsToWatchScreen() {
           try {
             await deleteItem.mutateAsync(id);
           } catch (e: any) {
-            Alert.alert('Error', e?.message ?? 'Could not remove item.');
+            alert('Error', e?.message ?? 'Could not remove item.');
           }
         },
       },

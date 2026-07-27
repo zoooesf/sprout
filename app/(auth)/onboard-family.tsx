@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, Alert, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
+import { alert } from '@/lib/alert';
 import { useAuthStore } from '@/stores/auth';
 import { colors, typography, spacing } from '@/lib/tokens';
 import { SoftButton } from '@/components/SoftButton';
@@ -16,7 +17,7 @@ export default function OnboardFamilyScreen() {
 
   const handleCreate = async () => {
     if (!familyName.trim()) {
-      Alert.alert('Family name required', 'Please enter a name for your family.');
+      alert('Family name required', 'Please enter a name for your family.');
       return;
     }
     if (!session?.user) return;
@@ -32,7 +33,7 @@ export default function OnboardFamilyScreen() {
 
     if (familyErr || !family) {
       setLoading(false);
-      Alert.alert('Error', familyErr?.message ?? 'Could not create family.');
+      alert('Error', familyErr?.message ?? 'Could not create family.');
       return;
     }
 
@@ -47,7 +48,7 @@ export default function OnboardFamilyScreen() {
     setLoading(false);
 
     if (profileErr || !profile) {
-      Alert.alert('Error', profileErr?.message ?? 'Could not update profile.');
+      alert('Error', profileErr?.message ?? 'Could not update profile.');
       return;
     }
 

@@ -3,7 +3,7 @@
  */
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -11,6 +11,7 @@ import { useQuery } from '@tanstack/react-query';
 import * as Print from 'expo-print';
 import { shareAsync } from 'expo-sharing';
 import { supabase, type LogEntry } from '@/lib/supabase';
+import { alert } from '@/lib/alert';
 import { colors, typography, spacing } from '@/lib/tokens';
 import { useAuthStore } from '@/stores/auth';
 import { Card } from '@/components/Card';
@@ -70,7 +71,7 @@ export default function ReportScreen() {
       const { uri } = await Print.printToFileAsync({ html, base64: false });
       await shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
     } catch (e: any) {
-      Alert.alert('Export failed', e?.message ?? 'Could not generate the report.');
+      alert('Export failed', e?.message ?? 'Could not generate the report.');
     } finally {
       setExporting(false);
     }

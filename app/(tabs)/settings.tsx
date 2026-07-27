@@ -2,10 +2,11 @@
  * Settings screen — family info, invite code, notifications, library, sign out.
  */
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert, Share, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Share, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
+import { alert } from '@/lib/alert';
 import { colors, typography, spacing } from '@/lib/tokens';
 import { useAuthStore } from '@/stores/auth';
 import { Card } from '@/components/Card';
@@ -53,7 +54,7 @@ export default function SettingsScreen() {
       const childName = activeSubject?.name ?? 'your child';
       const ok = await scheduleEveningReminder(childName);
       if (!ok) {
-        Alert.alert(
+        alert(
           'Permission needed',
           'Please allow notifications in your device Settings to enable reminders.',
           [{ text: 'OK' }]
@@ -83,7 +84,7 @@ export default function SettingsScreen() {
         title: 'Join our Sprout family',
       });
     } catch {
-      Alert.alert('Invite code', code);
+      alert('Invite code', code);
     }
   };
 
@@ -206,7 +207,7 @@ export default function SettingsScreen() {
             icon="close" iconBg={colors.terracottaSoft} iconColor={colors.warnInk}
             title="Sign out" sub=""
             onPress={() => {
-              Alert.alert('Sign out', 'Are you sure you want to sign out?', [
+              alert('Sign out', 'Are you sure you want to sign out?', [
                 { text: 'Cancel', style: 'cancel' },
                 { text: 'Sign out', style: 'destructive', onPress: signOut },
               ]);
