@@ -465,7 +465,12 @@ function LogForm({ cat, onBack, onClose, editEntry, requestScan }: { cat: Catego
       const weather = isEditing ? undefined : await fetchCurrentWeather();
 
       if (isEditing) {
-        await updateEntry.mutateAsync({ id: editEntry!.id, payload, timestamp: entryTimestamp.toISOString() });
+        await updateEntry.mutateAsync({
+          id: editEntry!.id,
+          payload,
+          timestamp: entryTimestamp.toISOString(),
+          photo_urls: photoUrls,
+        });
       } else {
         await createEntry.mutateAsync({
           type: cat,

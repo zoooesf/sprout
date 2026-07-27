@@ -241,7 +241,12 @@ export default function TodayScreen() {
                   } else {
                     router.push({
                       pathname: '/photo-viewer',
-                      params: { singleUrl: e.photo_urls[0], singleTimestamp: e.timestamp },
+                      params: {
+                        singleUrl: e.photo_urls[0],
+                        singleTimestamp: e.timestamp,
+                        entryId: e.id,
+                        subjectId: activeSubject?.id,
+                      },
                     });
                   }
                 }}

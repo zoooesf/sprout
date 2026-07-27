@@ -15,6 +15,8 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { usePhotoEntries } from '@/hooks/usePhotoEntries';
+import { useLogEntry } from '@/hooks/useLogEntries';
+import { QuickLogSheet } from '@/components/QuickLogSheet';
 import type { PhotoPayload, LogEntry } from '@/lib/supabase';
 import { scoreColor } from '@/lib/tokens';
 
@@ -87,6 +89,9 @@ export default function PhotoViewer() {
     isSingleMode ? undefined : subjectId
   );
 
+  const { data: singleEntry } = useLogEntry(isSingleMode ? entryId : undefined);
+  const [editingEntry, setEditingEntry] = useState<LogEntry | null>(null);
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const indexInitialized = useRef(false);
 
@@ -136,6 +141,7 @@ export default function PhotoViewer() {
   })();
 
   const currentEntry = photoEntries[currentIndex];
+  const entryToEdit = isSingleMode ? singleEntry : currentEntry;
 
   return (
     <Animated.View
@@ -180,6 +186,15 @@ export default function PhotoViewer() {
         <Ionicons name="close" size={24} color="#fff" />
       </TouchableOpacity>
 
+      {entryToEdit && (
+        <TouchableOpacity
+          style={[styles.editBtn, { top: insets.top + 12 }]}
+          onPress={() => setEditingEntry(entryToEdit)}
+        >
+          <Ionicons name="pencil" size={20} color="#fff" />
+        </TouchableOpacity>
+      )}
+
       {!isSingleMode && photoEntries.length > 1 && (
         <Text style={[styles.counter, { top: insets.top + 16 }]}>
           {currentIndex + 1} / {photoEntries.length}
@@ -192,6 +207,13 @@ export default function PhotoViewer() {
         singleTimestamp={singleTimestamp}
         paddingBottom={insets.bottom + 16}
       />
+
+      {editingEntry && (
+        <QuickLogSheet
+          editEntry={editingEntry}
+          onClose={() => setEditingEntry(null)}
+        />
+      )}
     </Animated.View>
   );
 }
@@ -224,9 +246,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 10,
   },
-  counter: {
+  editBtn: {
     position: 'absolute',
     right: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  counter: {
+    position: 'absolute',
+    right: 64,
     color: 'rgba(255,255,255,0.8)',
     fontSize: 14,
     fontWeight: '500',

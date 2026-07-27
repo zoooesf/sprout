@@ -37,6 +37,23 @@ export function useLogEntries(date?: string) {
   });
 }
 
+/** Fetches a single log entry by id. */
+export function useLogEntry(id: string | undefined) {
+  return useQuery({
+    queryKey: ['log-entries', 'single', id],
+    enabled: !!id,
+    queryFn: async (): Promise<LogEntry | null> => {
+      const { data, error } = await supabase
+        .from('log_entries')
+        .select('*')
+        .eq('id', id!)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
 export function usePendingCount() {
   return useQuery({
     queryKey: ['pending-count'],
@@ -170,10 +187,13 @@ export function useUpdateLogEntry() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, payload, timestamp }: { id: string; payload: Record<string, unknown>; timestamp?: string }) => {
+    mutationFn: async ({ id, payload, timestamp, photo_urls }: { id: string; payload: Record<string, unknown>; timestamp?: string; photo_urls?: string[] }) => {
+      const update: Record<string, unknown> = { payload };
+      if (timestamp !== undefined) update.timestamp = timestamp;
+      if (photo_urls !== undefined) update.photo_urls = photo_urls;
       const { error } = await supabase
         .from('log_entries')
-        .update(timestamp !== undefined ? { payload, timestamp } : { payload })
+        .update(update)
         .eq('id', id);
       if (error) throw error;
     },
