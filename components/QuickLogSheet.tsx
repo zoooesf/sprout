@@ -447,7 +447,10 @@ function LogForm({ cat, onBack, onClose, editEntry, requestScan }: { cat: Catego
           break;
         }
         case 'photo': {
-          if (photoUri && photoUri.startsWith('file://') && activeSubject) {
+          // A local, not-yet-uploaded photo (file:// on native, blob:/data: on web)
+          // needs uploading — anything already http(s):// was uploaded previously.
+          const isLocalUri = !!photoUri && !/^https?:\/\//.test(photoUri);
+          if (isLocalUri && activeSubject) {
             setUploadingPhoto(true);
             try {
               const url = await uploadPhoto(activeSubject.id, photoUri);

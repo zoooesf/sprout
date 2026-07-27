@@ -6,13 +6,15 @@ export async function uploadPhoto(
   subjectId: string,
   localUri: string,
 ): Promise<string> {
-  const cleanUri = localUri.split('?')[0];
-  const ext = cleanUri.split('.').pop()?.toLowerCase() ?? 'jpg';
-  const contentType = ext === 'png' ? 'image/png' : 'image/jpeg';
-  const path = `${subjectId}/${Date.now()}.${ext}`;
-
   const response = await fetch(localUri);
   const blob = await response.blob();
+
+  // Local URIs vary by platform (file:// on native, blob:/data: on web) and
+  // don't reliably carry a file extension, so derive it from the blob's
+  // actual MIME type instead of parsing the URI.
+  const contentType = blob.type || 'image/jpeg';
+  const ext = contentType === 'image/png' ? 'png' : 'jpg';
+  const path = `${subjectId}/${Date.now()}.${ext}`;
 
   const { error } = await supabase.storage
     .from(BUCKET)
