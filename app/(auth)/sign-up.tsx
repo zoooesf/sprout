@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { alert } from '@/lib/alert';
@@ -9,6 +9,7 @@ import { SoftButton } from '@/components/SoftButton';
 import { CategoryIcon } from '@/components/icons/CategoryIcon';
 
 export default function SignUpScreen() {
+  const { inviteCode } = useLocalSearchParams<{ inviteCode?: string }>();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,7 +21,7 @@ export default function SignUpScreen() {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
       options: { data: { display_name: name.trim() } },
@@ -30,6 +31,17 @@ export default function SignUpScreen() {
       alert('Sign up failed', error.message);
       return;
     }
+
+    if (inviteCode) {
+      if (!data.session) {
+        alert('Confirm your email', 'Check your inbox to confirm your account, then come back and enter your family code again.');
+        router.replace('/(auth)/welcome');
+        return;
+      }
+      router.replace({ pathname: '/(auth)/join-family', params: { inviteCode } });
+      return;
+    }
+
     router.replace('/(auth)/onboard-family');
   };
 

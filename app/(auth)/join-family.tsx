@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, ScrollView } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { alert } from '@/lib/alert';
@@ -9,7 +9,8 @@ import { colors, typography, spacing } from '@/lib/tokens';
 import { SoftButton } from '@/components/SoftButton';
 
 export default function JoinFamilyScreen() {
-  const [inviteCode, setInviteCode] = useState('');
+  const { inviteCode: prefilledCode } = useLocalSearchParams<{ inviteCode?: string }>();
+  const [inviteCode, setInviteCode] = useState(prefilledCode ?? '');
   const [loading, setLoading] = useState(false);
   const session = useAuthStore((s) => s.session);
   const loadUserData = useAuthStore((s) => s.loadUserData);
@@ -19,15 +20,18 @@ export default function JoinFamilyScreen() {
       alert('Code required', 'Please enter the invite code from your co-parent.');
       return;
     }
-    if (!session?.user) return;
+
+    if (!session?.user) {
+      alert('Account required', 'Create an account first, then your family code will be applied automatically.');
+      router.push({ pathname: '/(auth)/sign-up', params: { inviteCode: inviteCode.trim() } });
+      return;
+    }
 
     setLoading(true);
-    // Find family by invite code
+    // Find family by invite code (RPC bypasses the members-only RLS read policy)
     const { data: family, error: findErr } = await supabase
-      .from('families')
-      .select('id')
-      .eq('invite_code', inviteCode.trim().toLowerCase())
-      .single();
+      .rpc('find_family_by_invite_code', { code: inviteCode.trim().toLowerCase() })
+      .single<{ id: string; name: string }>();
 
     if (findErr || !family) {
       setLoading(false);
