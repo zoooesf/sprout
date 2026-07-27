@@ -14,7 +14,6 @@ export default function TabsLayout() {
           borderTopColor: colors.hairline,
           borderTopWidth: 1,
           height: Platform.OS === 'ios' ? 88 : 64,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 8,
           paddingTop: 8,
         },
         tabBarActiveTintColor: colors.sageDeep,
