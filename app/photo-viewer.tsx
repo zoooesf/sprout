@@ -153,6 +153,7 @@ export default function PhotoViewer() {
       ) : (
         <FlatList
           style={styles.list}
+          contentContainerStyle={styles.listContent}
           data={photoEntries}
           keyExtractor={(e) => e.id}
           horizontal
@@ -230,6 +231,9 @@ const styles = StyleSheet.create({
   },
   list: {
     flex: 1,
+  },
+  listContent: {
+    height: '100%',
   },
   page: {
     width: SCREEN_W,
