@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Platform } from 'react-native';
+import { Stack, useRouter } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth';
@@ -18,10 +19,24 @@ export default function RootLayout() {
     ...MaterialCommunityIcons.font,
     ...Ionicons.font,
   });
+  const router = useRouter();
 
   const setSession = useAuthStore((s) => s.setSession);
   const setSessionLoaded = useAuthStore((s) => s.setSessionLoaded);
   const loadUserData = useAuthStore((s) => s.loadUserData);
+
+  useEffect(() => {
+    // When launched from a home screen icon, always land on the home
+    // route instead of whichever page was open when the icon was added.
+    if (Platform.OS === 'web') {
+      const nav = window.navigator as Navigator & { standalone?: boolean };
+      const isStandalone =
+        window.matchMedia?.('(display-mode: standalone)').matches || nav.standalone === true;
+      if (isStandalone && window.location.pathname !== '/') {
+        router.replace('/');
+      }
+    }
+  }, []);
 
   useEffect(() => {
     // Hydrate session on app start
